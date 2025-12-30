@@ -1,0 +1,11 @@
+# 서명 결과 / 업로드 파일
+/signed/
+/uploads/
+/signatures/
+/generated/
+
+# 템플릿 PDF (json은 관리)
+ /templates/*.pdf
+
+# 환경변수
+.env
