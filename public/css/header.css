@@ -1,0 +1,48 @@
+.header {
+  height: 60px;
+  background: #fff;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid #ddd;
+}
+
+.circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #2563eb;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+}
+
+.profile {
+  position: relative;
+}
+
+.profile-popup {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 48px;
+  background: #fff;
+  border: 1px solid #ddd;
+  padding: 12px;
+  width: 180px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+
+.profile-popup.active {
+  display: block;
+}
+
+.site-select,
+.site-name {
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}

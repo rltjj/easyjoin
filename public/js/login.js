@@ -26,7 +26,7 @@ loginBtn.onclick = async () => {
 
   if (data.success) {
     setTimeout(() => {
-      location.href = '../../index.php';
+      location.href = 'home.php';
     }, 1000);
   }
 };
