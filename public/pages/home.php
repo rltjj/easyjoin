@@ -13,7 +13,15 @@ $userId = $_SESSION['user_id'];
 $role   = $_SESSION['role'];
 
 $sites = getUserSites($pdo, $userId, $role);
-$currentSite = $sites[0] ?? null;
+$currentSiteId = $_SESSION['current_site_id'] ?? ($sites[0]['id'] ?? null);
+$currentSite = null;
+
+foreach ($sites as $site) {
+    if ($site['id'] == $currentSiteId) {
+        $currentSite = $site;
+        break;
+    }
+}
 
 $contracts = $currentSite ? getContractStats($pdo, $currentSite['id']) : [];
 $inquiries = $currentSite ? getInquiries($pdo, $currentSite['id']) : [];

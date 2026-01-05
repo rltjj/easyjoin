@@ -35,7 +35,7 @@ foreach ($sites as $s) {
 ?>
 
 <header class="header">
-  <div class="page-title">홈</div>
+  <div class="page-title">페이지 이름</div>
 
   <div class="profile" id="profileBtn">
     <div class="circle"><?= mb_substr($roleText, 0, 1) ?></div>
@@ -51,37 +51,36 @@ foreach ($sites as $s) {
   </div>
 </header>
 
-<?php if ($role === 'ADMIN'): ?>
-  <div class="site-select">
-    <form method="post" action="/api/site/change_site.php">
-      <select name="site_id" onchange="this.form.submit()">
-        <?php foreach ($sites as $site): ?>
-          <option value="<?= $site['id'] ?>"
-            <?= $site['id'] == $currentSiteId ? 'selected' : '' ?>>
-            <?= htmlspecialchars($site['site_name']) ?>
-          </option>
-        <?php endforeach; ?>
-      </select>
-    </form>
-  </div>
+<?php if ($_SESSION['role'] === 'ADMIN'): ?>
+<div class="site-select">
+  <form method="post" action="/easyjoin/api/site/change_site.php">
+    <select name="site_id" onchange="this.form.submit()">
+      <?php foreach ($sites as $site): ?>
+        <option value="<?= $site['id'] ?>" <?= $site['id']==$currentSiteId?'selected':'' ?>>
+          <?= htmlspecialchars($site['site_name']) ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
+  </form>
+</div>
 <?php else: ?>
-  <div class="site-name">
-    <?= htmlspecialchars($currentSiteName) ?>
-  </div>
+<div class="site-name">
+  <?= htmlspecialchars($sites[0]['site_name'] ?? '-') ?>
+</div>
 <?php endif; ?>
 
 <script>
-document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('profileBtn');
-  const popup = document.getElementById('profilePopup');
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('profileBtn');
+    const popup = document.getElementById('profilePopup');
 
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    popup.classList.toggle('active');
-  });
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      popup.classList.toggle('active');
+    });
 
-  document.addEventListener('click', () => {
-    popup.classList.remove('active');
+    document.addEventListener('click', () => {
+      popup.classList.remove('active');
+    });
   });
-});
 </script>

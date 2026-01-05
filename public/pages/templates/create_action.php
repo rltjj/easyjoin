@@ -1,0 +1,87 @@
+<?php
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+require_once __DIR__ . '/../../../config/database.php';
+
+if ($_SESSION['role'] !== 'ADMIN') {
+    die('권한 없음');
+}
+
+$siteId = $_SESSION['current_site_id'] ?? null;
+
+if (!$siteId) {
+    echo json_encode([
+        'success' => false,
+        'message' => '현장 정보가 없습니다.'
+    ]);
+    exit;
+}
+
+$title      = trim($_POST['title'] ?? '');
+$categoryId = $_POST['category_id'] ?? null;
+
+if ($title === '' || !$categoryId) {
+    die('필수값 누락');
+}
+
+// 유효한 카테고리인지 확인
+$stmt = $pdo->prepare("
+    SELECT id
+    FROM templates_categories
+    WHERE id = :id
+      AND site_id = :site_id
+      AND is_deleted = 0
+");
+$stmt->execute([
+    ':id'      => $categoryId,
+    ':site_id' => $siteId
+]);
+
+if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
+    die('유효하지 않은 카테고리');
+}
+
+// 파일 업로드 처리
+if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
+    die('파일 업로드 실패');
+}
+
+$uploadDir = __DIR__ . '/../../uploads/templates/';
+if (!is_dir($uploadDir)) {
+    mkdir($uploadDir, 0777, true);
+}
+
+$filename = uniqid('tpl_', true) . '.pdf';
+$filepath = $uploadDir . $filename;
+
+move_uploaded_file($_FILES['pdf']['tmp_name'], $filepath);
+
+// templates 테이블에 INSERT (category_id로)
+$stmt = $pdo->prepare("
+    INSERT INTO templates (
+        site_id,
+        title,
+        category_id,
+        pdf_path,
+        created_at
+    ) VALUES (
+        :site_id,
+        :title,
+        :category_id,
+        :pdf_path,
+        NOW()
+    )
+");
+
+$stmt->execute([
+    ':site_id'     => $siteId,
+    ':title'       => $title,
+    ':category_id' => $categoryId,
+    ':pdf_path'    => '/uploads/templates/' . $filename
+]);
+
+// 등록 후 템플릿 목록 페이지로 리다이렉트
+header('Location: index.php');
+exit;

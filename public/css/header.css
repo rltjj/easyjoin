@@ -27,13 +27,14 @@
 .profile-popup {
   display: none;
   position: absolute;
-  right: 0;
   top: 48px;
+  right: 0;
   background: #fff;
   border: 1px solid #ddd;
   padding: 12px;
-  width: 180px;
-  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
 }
 
 .profile-popup.active {

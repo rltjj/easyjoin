@@ -1,34 +1,32 @@
 <?php
 
-function getContractStats(PDO $pdo, int $siteId): array
-{
+function getContractStats(PDO $pdo, $siteId) {
     $stmt = $pdo->prepare("
-        SELECT 
-            t.title,
-            t.category,
-            SUM(c.status = 'IN_PROGRESS') AS in_progress,
-            SUM(c.status = 'COMPLETED') AS completed
+        SELECT t.title, c.name AS category,
+               SUM(CASE WHEN co.status='IN_PROGRESS' THEN 1 ELSE 0 END) AS in_progress,
+               SUM(CASE WHEN co.status='COMPLETED' THEN 1 ELSE 0 END) AS completed
         FROM templates t
-        LEFT JOIN contracts c ON c.template_id = t.id
-        WHERE t.site_id = ? AND t.is_deleted = 0
-        GROUP BY t.id
+        LEFT JOIN templates_categories c ON t.category_id = c.id
+        LEFT JOIN contracts co 
+            ON co.template_id = t.id 
+           AND co.site_id = :site_id  -- 계약도 현장 기준
+        WHERE t.site_id = :site_id
+        GROUP BY t.id, t.title, c.name
+        ORDER BY t.created_at DESC
     ");
-    $stmt->execute([$siteId]);
-    return $stmt->fetchAll();
+    $stmt->execute([':site_id' => $siteId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function getInquiries(PDO $pdo, int $siteId, int $limit = 5): array
-{
+
+function getInquiries(PDO $pdo, $siteId) {
     $stmt = $pdo->prepare("
-        SELECT i.id, i.content, i.status, i.created_at, u.name
+        SELECT i.id, i.content, i.status, u.name
         FROM inquiries i
-        LEFT JOIN users u ON u.id = i.requester_id
-        WHERE i.site_id = ?
+        LEFT JOIN users u ON i.requester_id = u.id
+        WHERE i.site_id = :site_id
         ORDER BY i.created_at DESC
-        LIMIT ?
     ");
-    $stmt->bindValue(1, $siteId, PDO::PARAM_INT);
-    $stmt->bindValue(2, $limit, PDO::PARAM_INT);
-    $stmt->execute();
-    return $stmt->fetchAll();
+    $stmt->execute([':site_id' => $siteId]);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
