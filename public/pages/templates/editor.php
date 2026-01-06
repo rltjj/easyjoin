@@ -68,7 +68,7 @@ body { margin:0; display:flex; height:100%; font-family:sans-serif; }
 .save-btn {
   position:fixed;
   bottom:20px;
-  right:20px;
+  left:20px;
   padding:10px 20px;
 }
 .pdf-page {
@@ -191,7 +191,16 @@ pdfjsLib.getDocument(pdfUrl).promise.then(async pdf => {
     canvas.width = viewport.width;
     canvas.height = viewport.height;
 
+    const guideX = document.createElement('div');
+    guideX.className = 'guide-line x';
+
+    const guideY = document.createElement('div');
+    guideY.className = 'guide-line y';
+
+    pageWrap.appendChild(guideX);
+    pageWrap.appendChild(guideY);
     pageWrap.appendChild(canvas);
+
     wrap.appendChild(pageWrap);
 
     await page.render({
@@ -262,8 +271,8 @@ function addField(type, role, label='') {
 }
 
 function makeDraggable(el, container) {
-  const guideX = document.getElementById('guide-x');
-  const guideY = document.getElementById('guide-y');
+  const guideX = container.querySelector('.guide-line.x');
+  const guideY = container.querySelector('.guide-line.y');
 
   let offsetX, offsetY;
 
@@ -290,13 +299,8 @@ function makeDraggable(el, container) {
       el.style.top  = y + 'px';
 
       // 가이드라인 표시
-      guideX.style.top  = (y + el.offsetHeight / 2) + 'px';
-      guideX.style.left = '0';
-      guideX.style.width = container.offsetWidth + 'px';
-
+      guideX.style.top = (y + el.offsetHeight / 2) + 'px';
       guideY.style.left = (x + el.offsetWidth / 2) + 'px';
-      guideY.style.top  = '0';
-      guideY.style.height = container.offsetHeight + 'px';
 
       guideX.style.display = 'block';
       guideY.style.display = 'block';
@@ -455,8 +459,8 @@ document.addEventListener('keydown', e => {
     copiedField = {
       type: selected.dataset.type,
       label: selected.textContent,
-      width: selected.offsetWidth,
-      height: selected.offsetHeight
+      width: parseInt(selected.style.width),
+      height: parseInt(selected.style.height)
     };
 
     console.log('필드 복사됨', copiedField);
