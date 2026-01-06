@@ -9,13 +9,11 @@ if ($_SESSION['role'] !== 'ADMIN') {
 $templateId = intval($_GET['id'] ?? 0);
 if (!$templateId) die('템플릿 없음');
 
-/* 템플릿 조회 */
 $stmt = $pdo->prepare("SELECT * FROM templates WHERE id = :id");
 $stmt->execute([':id' => $templateId]);
 $template = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$template) die('존재하지 않음');
 
-/* 기존 필드 */
 $stmt = $pdo->prepare("
   SELECT *
   FROM template_fields
@@ -33,9 +31,9 @@ $fields = $stmt->fetchAll(PDO::FETCH_ASSOC);
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.8.162/pdf.min.js"></script>
 
 <style>
-body { margin:0; display:flex; height:100vh; font-family:sans-serif; }
+body { margin:0; display:flex; height:100%; font-family:sans-serif; }
 .sidebar {
-  width:260px; background:#f5f5f5; padding:10px; overflow:auto;
+  width:260px; height:100%; background:#f5f5f5; padding:10px; overflow:auto; position: fixed;
 }
 .sidebar h3 { cursor:pointer; margin:10px 0; }
 .sidebar .group { display:none; padding-left:10px; }
@@ -50,10 +48,20 @@ body { margin:0; display:flex; height:100vh; font-family:sans-serif; }
 .field {
   position:absolute;
   border:1px dashed #333;
-  padding:4px;
   background:#fff;
   cursor:move;
 }
+
+.field .resize {
+  position:absolute;
+  width:10px;
+  height:10px;
+  right:-5px;
+  bottom:-5px;
+  background:#4f46e5;
+  cursor:se-resize;
+}
+
 .field.selected {
   border:2px solid red;
 }
@@ -63,26 +71,50 @@ body { margin:0; display:flex; height:100vh; font-family:sans-serif; }
   right:20px;
   padding:10px 20px;
 }
+.pdf-page {
+  position: relative;
+  margin-bottom: 30px;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,.15);
+}
+.pdf-page.active {
+  outline: 3px solid #4f46e5;
+}
+.guide-line {
+  position:absolute;
+  background:#4f46e5;
+  pointer-events:none;
+  display:none;
+  z-index:1000;
+}
+.guide-line.x {
+  height:1px;
+  width:100%;
+}
+
+.guide-line.y {
+  width:1px;
+  height:100%;
+}
 </style>
 </head>
 
 <body>
 
-<!-- 좌측 필드 -->
 <div class="sidebar">
 
   <h3 onclick="toggleGroup(this)">직원</h3>
   <div class="group">
     <button onclick="addField('TEXT','STAFF')">텍스트</button>
     <button onclick="addField('CHECKBOX','STAFF')">체크박스</button>
-    <button onclick="addField('SIGN','STAFF')">서명/날인</button>
+    <button onclick="addField('SIGN','STAFF', '날인')">서명/날인</button>
   </div>
 
   <h3 onclick="toggleGroup(this)">계약자</h3>
   <div class="group">
     <button onclick="addField('TEXT','CONTRACTOR')">텍스트</button>
     <button onclick="addField('CHECKBOX','CONTRACTOR')">체크박스</button>
-    <button onclick="addField('SIGN','CONTRACTOR')">서명/날인</button>
+    <button onclick="addField('SIGN','CONTRACTOR', '서명')">서명/날인</button>
     <button onclick="addField('TEXT','CONTRACTOR','주민등록번호')">주민등록번호</button>
     <button onclick="addField('TEXT','CONTRACTOR','주소')">주소</button>
     <button onclick="addField('TEXT','CONTRACTOR','동')">동</button>
@@ -96,48 +128,91 @@ body { margin:0; display:flex; height:100vh; font-family:sans-serif; }
     <button onclick="addField('DATE','CONTRACTOR','dd')">dd</button>
   </div>
 
+  <hr>
+  <h3>선택 필드 설정</h3>
+
+  <div id="fieldPanel" style="display:none">
+    <label>
+      라벨
+      <input type="text" id="fieldLabel">
+    </label>
+    <br><br>
+    <button onclick="deleteField()">삭제</button>
+  </div>
+
 </div>
 
-<!-- PDF 영역 -->
 <div class="editor">
-  <div id="pdfWrap"></div>
+  <div id="pdfWrap">
+    <div id="guide-x" class="guide-line x"></div>
+    <div id="guide-y" class="guide-line y"></div>
+  </div>
 </div>
 
 <button class="save-btn" onclick="saveFields()">저장하기</button>
 
+<?php
+$pdfUrl = '/easyjoin/uploads/templates/' . basename($template['pdf_path']);
+?>
+
 <script>
-const pdfUrl = "<?= $template['pdf_path'] ?>";
+const pdfUrl = "<?= $pdfUrl ?>";
 const wrap = document.getElementById('pdfWrap');
 let selected = null;
+let activePage = null;
+
 let fields = <?= json_encode($fields, JSON_UNESCAPED_UNICODE) ?>;
 
-/* PDF 로드 */
-pdfjsLib.getDocument(pdfUrl).promise.then(pdf => {
-  pdf.getPage(1).then(page => {
-    const viewport = page.getViewport({scale:1.3});
+const SNAP = 5;
+
+function snap(v) {
+  return Math.round(v / SNAP) * SNAP;
+}
+
+let copiedField = null;
+
+
+pdfjsLib.getDocument(pdfUrl).promise.then(async pdf => {
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 1.3 });
+
+    const pageWrap = document.createElement('div');
+    pageWrap.className = 'pdf-page';
+    pageWrap.style.position = 'relative';
+    pageWrap.style.marginBottom = '20px';
+
+    pageWrap.addEventListener('click', e => {
+      e.stopPropagation();
+      setActivePage(pageWrap);
+    });
+
     const canvas = document.createElement('canvas');
     canvas.width = viewport.width;
     canvas.height = viewport.height;
-    wrap.appendChild(canvas);
 
-    page.render({
+    pageWrap.appendChild(canvas);
+    wrap.appendChild(pageWrap);
+
+    await page.render({
       canvasContext: canvas.getContext('2d'),
       viewport
-    });
+    }).promise;
+  }
 
-    renderFields();
-  });
+  renderFields();
 });
 
-/* 필드 렌더 */
 function renderFields() {
   fields.forEach(f => {
-    createFieldEl(f);
+    const pageEl = document.querySelectorAll('.pdf-page')[f.page - 1];
+    if (!pageEl) return;
+
+    createFieldEl(f, pageEl);
   });
 }
 
-/* 필드 생성 */
-function createFieldEl(f) {
+function createFieldEl(f, pageEl) {
   const el = document.createElement('div');
   el.className = 'field';
   el.style.left = f.pos_x + 'px';
@@ -145,56 +220,136 @@ function createFieldEl(f) {
   el.style.width = (f.width || 100) + 'px';
   el.style.height = (f.height || 30) + 'px';
   el.textContent = f.label || f.field_type;
-  el.dataset.id = f.id || '';
 
-  makeDraggable(el);
+  el.dataset.type = f.field_type;
+  el.dataset.role = f.role;
+
+  makeDraggable(el, pageEl);
+
+  if (f.field_type === 'TEXT' || f.field_type === 'SIGN') {
+    const resize = document.createElement('div');
+    resize.className = 'resize';
+    el.appendChild(resize);
+
+    makeResizable(el, resize, pageEl);
+  }
+
   el.onclick = e => {
     e.stopPropagation();
     select(el);
   };
-  wrap.appendChild(el);
+
+  pageEl.appendChild(el);
 }
 
-/* 새 필드 */
 function addField(type, role, label='') {
+  if (!activePage) {
+    alert('페이지를 먼저 클릭하세요');
+    return;
+  }
+
   const f = {
     field_type: type,
-    role,
+    role: role,
     label,
     pos_x: 50,
     pos_y: 50,
     width: type === 'CHECKBOX' ? 20 : 120,
     height: type === 'CHECKBOX' ? 20 : 30
   };
-  fields.push(f);
-  createFieldEl(f);
+
+  createFieldEl(f, activePage);
 }
 
-/* 드래그 */
-function makeDraggable(el) {
+function makeDraggable(el, container) {
+  const guideX = document.getElementById('guide-x');
+  const guideY = document.getElementById('guide-y');
+
   let offsetX, offsetY;
+
   el.onmousedown = e => {
+    if (e.target.classList.contains('resize')) return;
+
     select(el);
+
     offsetX = e.offsetX;
     offsetY = e.offsetY;
+
     document.onmousemove = ev => {
-      el.style.left = (ev.pageX - wrap.offsetLeft - offsetX) + 'px';
-      el.style.top  = (ev.pageY - wrap.offsetTop - offsetY) + 'px';
+      const rect = container.getBoundingClientRect();
+
+      let x = ev.clientX - rect.left - offsetX;
+      let y = ev.clientY - rect.top  - offsetY;
+
+
+      // 경계 제한
+      x = snap(x);
+      y = snap(y);
+
+      el.style.left = x + 'px';
+      el.style.top  = y + 'px';
+
+      // 가이드라인 표시
+      guideX.style.top  = (y + el.offsetHeight / 2) + 'px';
+      guideX.style.left = '0';
+      guideX.style.width = container.offsetWidth + 'px';
+
+      guideY.style.left = (x + el.offsetWidth / 2) + 'px';
+      guideY.style.top  = '0';
+      guideY.style.height = container.offsetHeight + 'px';
+
+      guideX.style.display = 'block';
+      guideY.style.display = 'block';
     };
+
+    document.onmouseup = () => {
+      document.onmousemove = null;
+      guideX.style.display = 'none';
+      guideY.style.display = 'none';
+    };
+  };
+}
+
+function makeResizable(el, handle, container) {
+  handle.onmousedown = e => {
+    e.stopPropagation();
+
+    const startX = e.pageX;
+    const startY = e.pageY;
+    const startW = el.offsetWidth;
+    const startH = el.offsetHeight;
+
+    const rect = container.getBoundingClientRect();
+
+    document.onmousemove = ev => {
+      let newW = startW + (ev.pageX - startX);
+      let newH = startH + (ev.pageY - startY);
+
+      newW = Math.max(40, newW);
+      newH = Math.max(20, newH);
+
+      const left = el.offsetLeft;
+      const top  = el.offsetTop;
+
+      newW = Math.min(newW, rect.width - left);
+      newH = Math.min(newH, rect.height - top);
+
+      el.style.width  = newW + 'px';
+      el.style.height = newH + 'px';
+    };
+
     document.onmouseup = () => {
       document.onmousemove = null;
     };
   };
 }
 
-/* 선택 */
 function select(el) {
   document.querySelectorAll('.field').forEach(f => f.classList.remove('selected'));
   el.classList.add('selected');
   selected = el;
 }
 
-/* 삭제 */
 document.addEventListener('keydown', e => {
   if (e.key === 'Backspace' && selected) {
     selected.remove();
@@ -202,16 +357,21 @@ document.addEventListener('keydown', e => {
   }
 });
 
-/* 저장 */
 function saveFields() {
   const data = [];
-  document.querySelectorAll('.field').forEach(el => {
-    data.push({
-      label: el.textContent,
-      pos_x: parseInt(el.style.left),
-      pos_y: parseInt(el.style.top),
-      width: parseInt(el.style.width),
-      height: parseInt(el.style.height)
+
+  document.querySelectorAll('.pdf-page').forEach((pageEl, pageIndex) => {
+    pageEl.querySelectorAll('.field').forEach(el => {
+      data.push({
+        page: pageIndex + 1,
+        type: el.dataset.type,
+        role: el.dataset.role,
+        label: el.textContent,
+        pos_x: parseInt(el.style.left),
+        pos_y: parseInt(el.style.top),
+        width: parseInt(el.style.width),
+        height: parseInt(el.style.height)
+      });
     });
   });
 
@@ -219,10 +379,6 @@ function saveFields() {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify(data)
-  })
-  .then(r=>r.json())
-  .then(res=>{
-    alert('저장 완료');
   });
 }
 
@@ -230,6 +386,104 @@ function toggleGroup(h3) {
   const g = h3.nextElementSibling;
   g.style.display = g.style.display === 'block' ? 'none' : 'block';
 }
+
+function setActivePage(page) {
+  document.querySelectorAll('.pdf-page').forEach(p =>
+    p.classList.remove('active')
+  );
+  page.classList.add('active');
+  activePage = page;
+}
+
+function select(el) {
+  document.querySelectorAll('.field').forEach(f =>
+    f.classList.remove('selected')
+  );
+
+  el.classList.add('selected');
+  selected = el;
+
+  document.getElementById('fieldPanel').style.display = 'block';
+  document.getElementById('fieldLabel').value = el.textContent;
+}
+
+document.getElementById('fieldLabel').addEventListener('input', e => {
+  if (selected) {
+    selected.textContent = e.target.value;
+  }
+});
+
+function deleteField() {
+  if (!selected) return;
+  selected.remove();
+  selected = null;
+  document.getElementById('fieldPanel').style.display = 'none';
+}
+
+document.addEventListener('keydown', e => {
+  if (!selected) return;
+
+  const step = e.shiftKey ? 10 : 1;
+
+  let x = parseInt(selected.style.left);
+  let y = parseInt(selected.style.top);
+
+  switch (e.key) {
+    case 'ArrowLeft':  x -= step; break;
+    case 'ArrowRight': x += step; break;
+    case 'ArrowUp':    y -= step; break;
+    case 'ArrowDown':  y += step; break;
+    default: return;
+  }
+
+  e.preventDefault();
+
+  x = Math.max(0, Math.min(x, selected.parentElement.offsetWidth - selected.offsetWidth));
+  y = Math.max(0, Math.min(y, selected.parentElement.offsetHeight - selected.offsetHeight));
+
+  selected.style.left = x + 'px';
+  selected.style.top  = y + 'px';
+});
+
+document.addEventListener('keydown', e => {
+  if (!selected) return;
+
+  // 복사
+  if (e.ctrlKey && e.key === 'c') {
+    e.preventDefault();
+
+    copiedField = {
+      type: selected.dataset.type,
+      label: selected.textContent,
+      width: selected.offsetWidth,
+      height: selected.offsetHeight
+    };
+
+    console.log('필드 복사됨', copiedField);
+  }
+
+  // 붙여넣기
+  if (e.ctrlKey && e.key === 'v') {
+    e.preventDefault();
+
+    if (!copiedField || !activePage) return;
+
+    const x = snap(parseInt(selected.style.left) + 10);
+    const y = snap(parseInt(selected.style.top) + 10);
+
+    const f = {
+      field_type: copiedField.type,
+      label: copiedField.label,
+      pos_x: x,
+      pos_y: y,
+      width: copiedField.width,
+      height: copiedField.height
+    };
+
+    createFieldEl(f, activePage);
+  }
+});
+    
 </script>
 
 </body>

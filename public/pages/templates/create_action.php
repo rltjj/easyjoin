@@ -48,7 +48,7 @@ if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
     die('파일 업로드 실패');
 }
 
-$uploadDir = __DIR__ . '/../../uploads/templates/';
+$uploadDir = __DIR__ . '/../../../uploads/templates/';
 if (!is_dir($uploadDir)) {
     mkdir($uploadDir, 0777, true);
 }

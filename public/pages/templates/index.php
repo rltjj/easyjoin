@@ -128,6 +128,11 @@ $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
       </tr>
       <?php endforeach; ?>
     </tbody>
+    <div id="templateActionBar" class="template-action-bar" style="display:none; margin-top:10px;">
+      <button id="editTemplateBtn">내용 확인 및 수정</button>
+      <button id="toggleFavoriteBtn">즐겨찾기</button>
+      <button id="trashTemplateBtn">휴지통</button>
+    </div>
   </table>
 
 </main>
