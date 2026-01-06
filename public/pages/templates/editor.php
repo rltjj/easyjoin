@@ -380,9 +380,22 @@ function saveFields() {
   });
 
   fetch('save_fields.php?id=<?= $templateId ?>', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data)
+  })
+  .then(res => res.json())
+  .then(result => {
+    if (result.success) {
+      alert('저장되었습니다.');
+      location.href = 'index.php';
+    } else {
+      alert('저장에 실패했습니다.');
+    }
+  })
+  .catch(err => {
+    console.error(err);
+    alert('저장 중 오류가 발생했습니다.');
   });
 }
 
