@@ -56,19 +56,23 @@ $filepath = $uploadDir . $filename;
 
 move_uploaded_file($_FILES['pdf']['tmp_name'], $filepath);
 
+$staffSignEnabled = trim($_POST['staff_sign_enabled'] ?? 'NONE');
+
 $stmt = $pdo->prepare("
     INSERT INTO templates (
         site_id,
         title,
         category_id,
         pdf_path,
-        created_at
+        created_at,
+        staff_sign_mode
     ) VALUES (
         :site_id,
         :title,
         :category_id,
         :pdf_path,
-        NOW()
+        NOW(),
+        :staff_sign_enabled
     )
 ");
 
@@ -76,7 +80,8 @@ $stmt->execute([
     ':site_id'     => $siteId,
     ':title'       => $title,
     ':category_id' => $categoryId,
-    ':pdf_path'    => '/uploads/templates/' . $filename
+    ':pdf_path'    => '/uploads/templates/' . $filename,
+    ':staff_sign_enabled' => $staffSignEnabled
 ]);
 
 header('Location: index.php');

@@ -12,6 +12,7 @@ if (!$templateId) die('템플릿 없음');
 $stmt = $pdo->prepare("SELECT * FROM templates WHERE id = :id");
 $stmt->execute([':id' => $templateId]);
 $template = $stmt->fetch(PDO::FETCH_ASSOC);
+$staffSignMode = $template['staff_sign_mode'];
 if (!$template) die('존재하지 않음');
 
 $stmt = $pdo->prepare("
@@ -107,7 +108,14 @@ body { margin:0; display:flex; height:100%; font-family:sans-serif; }
   <div class="group">
     <button onclick="addField('TEXT','STAFF')">텍스트</button>
     <button onclick="addField('CHECKBOX','STAFF')">체크박스</button>
-    <button onclick="addField('SIGN','STAFF', '날인')">서명/날인</button>
+
+    <?php if ($staffSignMode === 'LIVE'): ?>
+      <button onclick="addField('SIGN','STAFF', '날인')">서명/날인</button>
+    <?php else: ?>
+      <button disabled style="opacity:.5; cursor:not-allowed;">
+        서명/날인 (사용 불가)
+      </button>
+    <?php endif; ?>
   </div>
 
   <h3 onclick="toggleGroup(this)">계약자</h3>
@@ -158,6 +166,8 @@ $pdfUrl = '/easyjoin/uploads/templates/' . basename($template['pdf_path']);
 <script>
 const pdfUrl = "<?= $pdfUrl ?>";
 const wrap = document.getElementById('pdfWrap');
+const STAFF_SIGN_MODE = "<?= $staffSignMode ?>";
+
 let selected = null;
 let activePage = null;
 
@@ -252,6 +262,20 @@ function createFieldEl(f, pageEl) {
 }
 
 function addField(type, role, label='') {
+
+  if (
+    role === 'STAFF' &&
+    type === 'SIGN' &&
+    STAFF_SIGN_MODE !== 'LIVE'
+  ) {
+    alert(
+      STAFF_SIGN_MODE === 'PRE_INCLUDED'
+        ? '이 문서는 직원 서명/날인이 이미 포함된 템플릿입니다.'
+        : '이 문서는 직원 서명/날인을 사용하지 않습니다.'
+    );
+    return;
+  }
+  
   if (!activePage) {
     alert('페이지를 먼저 클릭하세요');
     return;

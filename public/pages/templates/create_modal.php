@@ -55,6 +55,22 @@ if ($siteId) {
         <input type="file" name="pdf" accept="application/pdf" required>
       </div>
 
+      <div class="form-group">
+        <label>직원 서명 / 날인</label><br>
+        <label>
+          <input type="radio" name="staff_sign_enabled" value="LIVE" checked>
+          계약 중 직원이 서명/날인을 함 
+        </label><br>
+        <label>
+          <input type="radio" name="staff_sign_enabled" value="PRE_INCLUDED" checked>
+          사전에 포함
+        </label><br>
+        <label>
+          <input type="radio" name="staff_sign_enabled" value="NONE">
+          직원 서명/날인 없음
+        </label>
+      </div>
+
       <div class="modal-actions">
         <button type="submit">등록</button>
         <button type="button" onclick="closeModal()">취소</button>
