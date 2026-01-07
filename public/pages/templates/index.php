@@ -33,7 +33,12 @@ $categories = $catStmt->fetchAll(PDO::FETCH_ASSOC);
 
 // --- 템플릿 목록 ---
 $sql = "
-SELECT t.id, t.title, c.name AS category, t.created_at
+SELECT 
+  t.id,
+  t.title,
+  c.name AS category,
+  t.created_at,
+  t.is_favorite
 FROM templates t
 LEFT JOIN templates_categories c ON t.category_id = c.id
 WHERE t.site_id = :site_id
@@ -66,80 +71,86 @@ $templates = $stmt->fetchAll(PDO::FETCH_ASSOC);
 </head>
 <body>
 
-<div class="layout">
-<?php include __DIR__.'/../../../includes/sidebar.php'; ?>
-<div class="main">
-<?php include __DIR__.'/../../../includes/header.php'; ?>
+  <div class="layout">
+  <?php include __DIR__.'/../../../includes/sidebar.php'; ?>
 
-<main class="content">
+  <div class="main">
+  <?php include __DIR__.'/../../../includes/header.php'; ?>
 
-  <!-- 상단 툴바 -->
-  <div class="toolbar">
-    <select onchange="search()">
-      <option value="ALL">전체</option>
-      <?php foreach ($categories as $cat): ?>
-        <option value="<?= htmlspecialchars($cat['name']) ?>" <?= $category === $cat['name'] ? 'selected' : '' ?>>
-          <?= htmlspecialchars($cat['name']) ?>
-        </option>
-      <?php endforeach; ?>
-    </select>
+  <main class="content">
 
-    <input type="text" id="keyword" placeholder="제목 검색" value="<?= htmlspecialchars($keyword) ?>">
-    <button onclick="search()">검색</button>
+    <!-- 상단 툴바 -->
+    <div class="toolbar">
+      <select onchange="search()">
+        <option value="ALL">전체</option>
+        <?php foreach ($categories as $cat): ?>
+          <option value="<?= htmlspecialchars($cat['name']) ?>" <?= $category === $cat['name'] ? 'selected' : '' ?>>
+            <?= htmlspecialchars($cat['name']) ?>
+          </option>
+        <?php endforeach; ?>
+      </select>
 
-    <div class="right">
-      <button onclick="setLimit(10)">10개씩</button>
-      <button onclick="setLimit(20)">20개씩</button>
+      <input type="text" id="keyword" placeholder="제목 검색" value="<?= htmlspecialchars($keyword) ?>">
+      <button onclick="search()">검색</button>
+
+      <div class="right">
+        <button onclick="setLimit(10)">10개씩</button>
+        <button onclick="setLimit(20)">20개씩</button>
+      </div>
     </div>
-  </div>
 
-  <!-- 템플릿 등록 버튼 -->
-  <div class="top-action">
-    <button onclick="openModal()">템플릿 등록</button>
-  </div>
-
-  <?php include 'create_modal.php'; ?>
-
-  <!-- 선택 상태 -->
-  <div class="bulk-bar">
-    선택 <span id="selectedCount">0</span>개
-    <div class="right">
-      <button onclick="moveToTrash()">휴지통</button>
+    <!-- 템플릿 등록 버튼 -->
+    <div class="top-action">
+      <button onclick="openModal()">템플릿 등록</button>
     </div>
-  </div>
 
-  <!-- 템플릿 리스트 -->
-  <table class="template-table">
-    <thead>
-      <tr>
-        <th><input type="checkbox" id="checkAll"></th>
-        <th>템플릿 제목</th>
-        <th>카테고리</th>
-        <th>등록일</th>
-      </tr>
-    </thead>
-    <tbody id="templateList">
-      <?php foreach ($templates as $t): ?>
-      <tr data-id="<?= $t['id'] ?>">
-        <td><input type="checkbox" class="row-check"></td>
-        <td class="title"><?= htmlspecialchars($t['title']) ?></td>
-        <td><?= htmlspecialchars($t['category']) ?></td>
-        <td><?= date('Y-m-d', strtotime($t['created_at'])) ?></td>
-      </tr>
-      <?php endforeach; ?>
-    </tbody>
-    <div id="templateActionBar" class="template-action-bar" style="display:none; margin-top:10px;">
-      <button id="editTemplateBtn">내용 확인 및 수정</button>
-      <button id="toggleFavoriteBtn">즐겨찾기</button>
-      <button id="trashTemplateBtn">휴지통</button>
+    <?php include 'create_modal.php'; ?>
+
+    <!-- 선택 상태 -->
+    <div class="bulk-bar">
+      선택 <span id="selectedCount">0</span>개
+      <div class="right">
+        <button id="toggleFavoriteBtn">즐겨찾기</button>
+        <button id="trashTemplateBtn">휴지통</button>
+      </div>
     </div>
-  </table>
 
-</main>
-</div>
-</div>
+    <!-- 템플릿 리스트 -->
+    <table class="template-table">
+      <thead>
+        <tr>
+          <th><input type="checkbox" id="checkAll"></th>
+          <th>템플릿 제목</th>
+          <th>카테고리</th>
+          <th>등록일</th>
+        </tr>
+      </thead>
 
-<script src="../../js/template/list.js"></script>
+      <tbody id="templateList">
+        <?php foreach ($templates as $t): ?>
+        <tr data-id="<?= $t['id'] ?>" data-favorite="<?= $t['is_favorite'] ?>">
+          <td><input type="checkbox" class="row-check"></td>
+          <td class="title"><?= htmlspecialchars($t['title']) ?></td>
+          <td><?= htmlspecialchars($t['category']) ?></td>
+          <td><?= date('Y-m-d', strtotime($t['created_at'])) ?></td>
+        </tr>
+        <?php endforeach; ?>
+      </tbody>
+
+      <tbody>
+        <tr id="templateActionBar" style="display:none;">
+          <td colspan="4" class="action-bar">
+            <button id="editTemplateBtn">내용 확인 및 수정</button>
+            <button id="favoriteActionBtn">즐겨찾기</button>
+            <button id="trashActionBtn">휴지통</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+  </main>
+
+  <script src="../../js/template/list.js"></script>
 
 </body>
 </html>

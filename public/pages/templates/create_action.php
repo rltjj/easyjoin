@@ -26,7 +26,6 @@ if ($title === '' || !$categoryId) {
     die('필수값 누락');
 }
 
-// 유효한 카테고리인지 확인
 $stmt = $pdo->prepare("
     SELECT id
     FROM templates_categories
@@ -43,7 +42,6 @@ if (!$stmt->fetch(PDO::FETCH_ASSOC)) {
     die('유효하지 않은 카테고리');
 }
 
-// 파일 업로드 처리
 if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
     die('파일 업로드 실패');
 }
@@ -58,7 +56,6 @@ $filepath = $uploadDir . $filename;
 
 move_uploaded_file($_FILES['pdf']['tmp_name'], $filepath);
 
-// templates 테이블에 INSERT (category_id로)
 $stmt = $pdo->prepare("
     INSERT INTO templates (
         site_id,
@@ -82,6 +79,5 @@ $stmt->execute([
     ':pdf_path'    => '/uploads/templates/' . $filename
 ]);
 
-// 등록 후 템플릿 목록 페이지로 리다이렉트
 header('Location: index.php');
 exit;
